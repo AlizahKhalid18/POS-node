@@ -1,64 +1,65 @@
 const express = require("express");
+const cors = require("cors");
+const connectDB = require("./config.js");
+
 const app = express();
+app.use(cors());
 app.use(express.json());
 
-let users = [];
+connectDB();
 
-function sum ( req, res, next) {
-    res.send({status: "ok", calculation : parseInt( req.query.a ) + parseInt( req.query.b ) })
-}
-function sub ( req, res, next) {
-    res.send({status: "ok", calculation : parseInt( req.query.a ) - parseInt( req.query.b ) })
-}
 
-function multiply ( req, res, next) {
-    res.send({status: "ok", calculation : parseInt( req.query.a ) * parseInt( req.query.b ) })
+let tasks = [];
+
+async function addTask(req, res, next) {
+  let { body } = req;
+  tasks.push(body);
+  res.send({ status: "OK", tasks });
 }
 
-function divide ( req, res, next) {
-    res.send({status: "ok", calculation : parseInt( req.query.a ) / parseInt( req.query.b ) })
+function updateTaskById(req, res, next) {
+  const { body } = req;
+  const uniqueid = req.query.id;
+
+  function findtask(task) {
+    return task.id === uniqueid;
+  }
+
+  let task = tasks.find(findtask);
+
+  if (!task) {
+    return res.status(404).send({ status: "Error", message: "Task not found" });
+  }
+
+  let index = tasks.findIndex(x => x.id === task.id);
+
+  // Merge the updated fields into the existing task object
+  tasks[index] = { ...task, ...body };
+
+  res.send({ status: "OK", tasks });
 }
 
-function storeUser (req, res, next) {
-    let { body } = req;
-    users.push(body);
-    res.send({status : "OK", users});
+function deleteTaskById(req, res, next) {
+  const uniqueid = req.query.id;
+
+  if (!uniqueid) {
+    return res.status(400).send({ status: "Error", message: "ID is required" });
+  }
+
+  let index = tasks.findIndex((x) => x.id === uniqueid);
+
+  if (index === -1) {
+    return res.status(404).send({ status: "Error", message: "Task not found" });
+  }
+
+  tasks.splice(index, 1);
+  res.send({ status: "OK", tasks });
 }
 
-function getUser (req, res, next) {
-    res.send({status : "OK", users});
-}
+app.post("/storetasks", addTask);
+app.put("/updatetaskbyid", updateTaskById);
+app.delete("/deletetaskbyid", deleteTaskById);
 
-
-
-function updatebyid (req, res, next){
-    const {body} = req;
-    const uniqueid = req.query.id
-    function finduser (user,){
-        if (user.id === parseInt(uniqueid)){
-            return user;
-        }
-    }
-    
-
-    let user = users.filter(finduser)[0];
-    let index = users.findIndex(x => x.id === user.id);
-    users[index] = {...user, userName : body.userName}
-    res.send({status : "OK", users});
-
-}
-
-app.post("/storeuser", storeUser);
-app.put("/updatebyid", updatebyid);
-app.get("/getusers", getUser)
-
-app.get("/sum", sum)
-app.use("/sub", sub)
-app.use("/multi", multiply)
-app.use("/div", divide)
-
-function listen () {
-    console.log("Application is running")
-}
-
-app.listen(4000,listen);
+app.listen(4001, () => {
+  console.log("Application is running on port 4001");
+});
